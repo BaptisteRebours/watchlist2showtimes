@@ -119,7 +119,7 @@ for user in users_info:
         ## Watchlist movies
         print("Retrieving watchlist movies...")
         watchlist_movies = {}
-        for page_num in range(1, nb_pages):
+        for page_num in range(1, 2):
 
             # Avoid blocking
             print(f"Page {page_num}")
@@ -136,7 +136,7 @@ for user in users_info:
             div_movies = soup_page.find_all("li", class_="poster-container")
 
             # Retrieve movie info
-            for m, mov in enumerate(div_movies):
+            for m, mov in enumerate(div_movies[:5]):
 
                 # Avoid blocking
                 print(f"Movie {m+1}")
