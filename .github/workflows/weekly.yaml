@@ -2,7 +2,7 @@ name: Weekly cinema email
 
 on:
   schedule:
-    - cron: "15 6 * * 5"  # Vendredi 06:15 UTC
+    - cron: "30 6 * * 3,5"
   workflow_dispatch:
 
 jobs:
