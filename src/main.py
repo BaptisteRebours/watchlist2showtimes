@@ -16,8 +16,15 @@ from email.mime.text import MIMEText
 from html import escape
 from dotenv import load_dotenv
 import os
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-from utils import build_index, find_closest_id, google_maps_link
+from utils import (
+    build_index, 
+    find_closest_id, 
+    google_maps_link,
+    safe_get
+)
 from utils import (
     ALLOCINE_CITIES_PATH, 
     ALLOCINE_FILMS_PATH, 
@@ -38,6 +45,15 @@ session.headers.update({
                   "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
     "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
 })
+retry_strategy = Retry(
+    total=5,
+    backoff_factor=2,
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["HEAD", "GET", "OPTIONS", "POST"]
+)
+adapter = HTTPAdapter(max_retries=retry_strategy)
+session.mount("http://", adapter)
+session.mount("https://", adapter)
 
 
 ### --- Loading data ---
@@ -96,15 +112,14 @@ for page_num in range(1, 2):
 
     # Avoid blocking
     print(f"Page {page_num}")
-    time.sleep(random.uniform(5, 20))
+    time.sleep(random.uniform(10, 30))
 
     # Retrieve watchlist page x movies
     link_page = f"page/{page_num}"
     url_watchlist_page = urllib.parse.urljoin(url_watchlist, link_page)
-    r_page = session.get(url_watchlist_page)
-    if r_page.status_code == 429:
-        print("Rate limited, sleeping…")
-        time.sleep(60)
+    r_page = safe_get(url_watchlist_page, session)
+    if not r_page:
+        print(f"[SKIP] Impossible to retrieve {url_watchlist_page}")
         continue
     soup_page = BeautifulSoup(r_page.content, 'html.parser')
     div_movies = soup_page.find_all("li", class_="poster-container")
@@ -114,7 +129,7 @@ for page_num in range(1, 2):
 
         # Avoid blocking
         print(f"Movie {m+1}")
-        time.sleep(random.uniform(5, 20))
+        time.sleep(random.uniform(10, 30))
 
         # Retrieve movie url
         slug_movie = mov.find("div").get("data-film-slug")
@@ -122,7 +137,10 @@ for page_num in range(1, 2):
         url_movie = urllib.parse.urljoin(URL_LETTERBOXD, link_movie)
 
         # Retrieve movie info: title, original title if available, year and poster
-        r_movie = session.get(url_movie)
+        r_movie = safe_get(url_movie, session)
+        if not r_movie:
+            print(f"[SKIP] Impossible to retrieve {url_movie}")
+            continue
         soup_movie = BeautifulSoup(r_movie.content, 'html.parser')
         div_details = soup_movie.find("div", class_="details")
         # titles

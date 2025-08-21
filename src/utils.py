@@ -2,6 +2,7 @@
 import urllib
 import difflib
 from collections import defaultdict
+import requests
 
 
 ### --- Parameters ---
@@ -58,3 +59,15 @@ def google_maps_link(address: str) -> str:
     """
     query = urllib.parse.quote(address)
     return f"https://www.google.com/maps/search/?api=1&query={query}"
+
+def safe_get(url, session, timeout=15):
+    """Wrapper autour de session.get avec try/except.
+       Retourne None si erreur critique.
+    """
+    try:
+        resp = session.get(url, timeout=timeout)
+        resp.raise_for_status()
+        return resp
+    except requests.exceptions.RequestException as e:
+        print(f"[WARN] Erreur lors du GET {url} → {e}")
+        return None
