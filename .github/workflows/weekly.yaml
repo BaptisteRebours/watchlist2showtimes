@@ -16,7 +16,7 @@ jobs:
       TZ: Europe/Paris
       EMAIL_PORT: ${{ vars.EMAIL_PORT }}
       EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
-      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+      EMAIL_PWD: ${{ secrets.EMAIL_PWD }}
       USERS_INFO_JSON_B64: ${{ secrets.USERS_INFO_JSON_B64 }}
 
     steps:
@@ -47,7 +47,7 @@ jobs:
       - name: Run script (main.py)
         env:
           EMAIL_SENDER: ${{ env.EMAIL_SENDER }}
-          EMAIL_PWD: ${{ env.EMAIL_PASSWORD }}
+          EMAIL_PWD: ${{ env.EMAIL_PWD }}
           EMAIL_PORT: ${{ env.EMAIL_PORT }}
         run: |
           python src/main.py
