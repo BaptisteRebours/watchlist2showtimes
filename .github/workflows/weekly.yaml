@@ -1,0 +1,60 @@
+name: Weekly cinema email
+
+on:
+  schedule:
+    - cron: "15 6 * * 5"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: weekly-cinema
+      cancel-in-progress: false
+
+    env:
+      TZ: Europe/Paris
+      EMAIL_PORT: ${{ vars.EMAIL_SENDER }}
+      EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+      USERS_INFO_JSON_B64: ${{ secrets.USERS_INFO_JSON_B64 }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Recreate sensitive input file (users_info.json)
+        run: |
+          mkdir -p data/input
+          echo "$USERS_INFO_JSON_B64" | base64 -d > data/input/users_info.json
+
+      - name: Run script (main.py)
+        working-directory: ./src
+        env:
+          EMAIL_SENDER: ${{ env.EMAIL_SENDER }}
+          EMAIL_PWD: ${{ env.EMAIL_PASSWORD }}
+          EMAIL_PORT: ${{ env.SMTP_PORT }}
+        run: |
+          python main.py
+
+      - name: Upload outputs (JSON)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinema-outputs
+          path: |
+            data/output/**/*.json
+            data/output/*.json
+            data/*.json
+          if-no-files-found: ignore
