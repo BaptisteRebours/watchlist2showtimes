@@ -108,7 +108,7 @@ print(f"Pages total: {nb_pages}")
 ## Watchlist movies
 print("Retrieving watchlist movies...")
 watchlist_movies = {}
-for page_num in range(1, 2):
+for page_num in range(1, nb_pages):
 
     # Avoid blocking
     print(f"Page {page_num}")
@@ -125,7 +125,7 @@ for page_num in range(1, 2):
     div_movies = soup_page.find_all("li", class_="poster-container")
 
     # Retrieve movie info
-    for m, mov in enumerate(div_movies[:10]):
+    for m, mov in enumerate(div_movies):
 
         # Avoid blocking
         print(f"Movie {m+1}")
