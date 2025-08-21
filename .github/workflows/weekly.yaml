@@ -2,7 +2,7 @@ name: Weekly cinema email
 
 on:
   schedule:
-    - cron: "15 6 * * 5"
+    - cron: "15 6 * * 5"  # Vendredi 06:15 UTC
   workflow_dispatch:
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
 
     env:
       TZ: Europe/Paris
-      EMAIL_PORT: ${{ vars.EMAIL_SENDER }}
+      EMAIL_PORT: ${{ vars.EMAIL_PORT }}
       EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
       EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
       USERS_INFO_JSON_B64: ${{ secrets.USERS_INFO_JSON_B64 }}
@@ -40,13 +40,12 @@ jobs:
           echo "$USERS_INFO_JSON_B64" | base64 -d > data/input/users_info.json
 
       - name: Run script (main.py)
-        working-directory: ./src
         env:
           EMAIL_SENDER: ${{ env.EMAIL_SENDER }}
           EMAIL_PWD: ${{ env.EMAIL_PASSWORD }}
-          EMAIL_PORT: ${{ env.SMTP_PORT }}
+          EMAIL_PORT: ${{ env.EMAIL_PORT }}
         run: |
-          python main.py
+          python src/main.py
 
       - name: Upload outputs (JSON)
         if: always()
