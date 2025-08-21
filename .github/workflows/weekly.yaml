@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "30 6 * * 3,5"
   workflow_dispatch:
+    inputs:
+      only_user:
+        description: "lb_profile_id ou email à traiter (optionnel)"
+        required: false
+        type: string
 
 jobs:
   run:
@@ -49,6 +54,7 @@ jobs:
           EMAIL_SENDER: ${{ env.EMAIL_SENDER }}
           EMAIL_PWD: ${{ env.EMAIL_PWD }}
           EMAIL_PORT: ${{ env.EMAIL_PORT }}
+          ONLY_USER: ${{ inputs.only_user }}
         run: |
           python src/main.py
 
