@@ -39,6 +39,11 @@ jobs:
           mkdir -p data/input
           echo "$USERS_INFO_JSON_B64" | base64 -d > data/input/users_info.json
 
+      - name: Create output directories
+        run: |
+          mkdir -p data/output/watchlist_films
+          mkdir -p data/output/cinema_programme
+
       - name: Run script (main.py)
         env:
           EMAIL_SENDER: ${{ env.EMAIL_SENDER }}
