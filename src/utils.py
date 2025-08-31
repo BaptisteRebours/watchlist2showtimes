@@ -11,6 +11,7 @@ import requests
 URL_LETTERBOXD = "https://letterboxd.com/"
 URL_ALLOCINE = "https://www.allocine.fr"
 URL_ALLOCINE_SHOWTIMES = "https://www.allocine.fr/_/showtimes/"
+TMDB_BASE = "https://api.themoviedb.org/3"
 
 # Input / output parameters
 ALLOCINE_CITIES_PATH = "./data/input/allocine_cities_id.json"
@@ -60,14 +61,37 @@ def google_maps_link(address: str) -> str:
     query = urllib.parse.quote(address)
     return f"https://www.google.com/maps/search/?api=1&query={query}"
 
-def safe_get(url, session, timeout=15):
+def safe_get(url, session, params=None, timeout=15):
     """Wrapper autour de session.get avec try/except.
        Retourne None si erreur critique.
     """
     try:
-        resp = session.get(url, timeout=timeout)
+        resp = session.get(url, params=params, timeout=timeout)
         resp.raise_for_status()
         return resp
     except requests.exceptions.RequestException as e:
         print(f"[WARN] Erreur lors du GET {url} → {e}")
         return None
+
+def tmdb_search_movie(session: requests.Session, tmdb_token: str, title: str, year: str = None) -> dict | None:
+    """Premier résultat TMDb pour (title, year)."""
+    # Headers
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {tmdb_token}"
+    }
+    session.headers.update(headers)
+    # Params
+    params = {
+        "query": title,
+        "include_adult": False,
+        "language": "en-US",
+    }
+    if year:
+        params["year"] = year
+    # Request
+    r = safe_get(f"{TMDB_BASE}/search/movie", session=session, params=params)
+    if not r:
+        return None
+    results = (r.json() or {}).get("results") or []
+    return results[0] if results else None

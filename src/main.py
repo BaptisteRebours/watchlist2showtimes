@@ -8,6 +8,7 @@ import json
 from collections import defaultdict
 import random
 import time
+import re
 from datetime import datetime, timedelta
 import smtplib
 import ssl
@@ -23,7 +24,8 @@ from utils import (
     build_index, 
     find_closest_id, 
     google_maps_link,
-    safe_get
+    safe_get,
+    tmdb_search_movie,
 )
 from utils import (
     ALLOCINE_CITIES_PATH, 
@@ -76,6 +78,7 @@ load_dotenv()
 EMAIL_SENDER = os.getenv("EMAIL_SENDER")
 EMAIL_PORT = os.getenv("EMAIL_PORT")
 EMAIL_PWD = os.getenv("EMAIL_PWD")
+IMDB_TOKEN = os.getenv("IMDB_TOKEN")
 
 ## Date parameters
 date_today = datetime.today().strftime('%Y-%m-%d')
@@ -87,14 +90,14 @@ print("Scraping watchlist movies showtimes...")
 
 ONLY_USER = os.getenv("ONLY_USER")  
 
-for user in users_info:
+for u, user in enumerate(users_info):
 
     try:
         if ONLY_USER and (user.get("lb_profile_id") != ONLY_USER and user.get("email_address") != ONLY_USER):
             continue
         
         # Avoid blocking
-        print(f"User {user}")
+        print(f"User {u+1}")
         time.sleep(random.uniform(5, 10))
 
         ## User parameters
@@ -119,7 +122,7 @@ for user in users_info:
         ## Watchlist movies
         print("Retrieving watchlist movies...")
         watchlist_movies = {}
-        for page_num in range(1, 2):
+        for page_num in range(1, nb_pages+1):
 
             # Avoid blocking
             print(f"Page {page_num}")
@@ -133,41 +136,38 @@ for user in users_info:
                 print(f"[SKIP] Impossible to retrieve {url_watchlist_page}")
                 continue
             soup_page = BeautifulSoup(r_page.content, 'html.parser')
-            div_movies = soup_page.find_all("li", class_="poster-container")
+            div_movies = soup_page.find_all("li", class_="griditem")
 
             # Retrieve movie info
-            for m, mov in enumerate(div_movies[:5]):
+            for m, mov in enumerate(div_movies):
 
                 # Avoid blocking
                 print(f"Movie {m+1}")
-                time.sleep(random.uniform(10, 30))
+                time.sleep(random.uniform(1, 5))
 
-                # Retrieve movie url
-                slug_movie = mov.find("div").get("data-film-slug")
+                # Retrieve movie info from LB
+                slug_movie = mov.find("div").get("data-item-slug")
                 link_movie = f"film/{slug_movie}"
                 url_movie = urllib.parse.urljoin(URL_LETTERBOXD, link_movie)
+                title_year_movie = mov.find("div").get("data-item-name") 
+                re_match = re.match(r"^(.*)\((\d{4})\)\s*$", title_year_movie)
+                title_movie = re_match.group(1).rstrip() if re_match else title_year_movie
+                year_movie = re_match.group(2) if re_match else None
 
-                # Retrieve movie info: title, original title if available, year and poster
-                r_movie = safe_get(url_movie, session)
-                if not r_movie:
-                    print(f"[SKIP] Impossible to retrieve {url_movie}")
-                    continue
-                soup_movie = BeautifulSoup(r_movie.content, 'html.parser')
-                div_details = soup_movie.find("div", class_="details")
-                # titles
-                movie_title = div_details.find("h1", class_="headline-1").find('span').get_text()
-                original_bool = div_details.find("h2", class_="originalname")
-                movie_original_title = original_bool.find("em").get_text() if original_bool else None
-                # year
-                movie_year = div_details.find('span', class_="releasedate").get_text().strip() if div_details.find('span', class_="releasedate") else None
+                # Retrieve movie original title from TMDB
+                res_tmdb = tmdb_search_movie(session, IMDB_TOKEN, title_movie, year_movie)
+                tmdb_original_title = res_tmdb['original_title'] if res_tmdb else None
+                tmdb_poster = f"https://image.tmdb.org/t/p/w500{res_tmdb['poster_path']}" if res_tmdb else None
                 
                 # Append movie to watchlist dict
                 watchlist_movies[slug_movie] = {
-                    "lb_title": movie_title,
+                    "lb_title": title_movie,
                     "lb_url": url_movie,
-                    "lb_year": movie_year,
-                    "lb_original_title": movie_original_title,
-                } 
+                    "lb_year": year_movie,
+                    "tmdb_original_title": tmdb_original_title,
+                    "tmdb_poster": tmdb_poster,
+                }
+
 
         # Export watchlist movies
         print("Exporting watchlist movies...")
@@ -181,9 +181,9 @@ for user in users_info:
         allocine_title_to_id_year = build_index(allocine_films)
 
         for lb_id, lb_movie in watchlist_movies.items():
-            lb_title_request = lb_movie.get("lb_original_title") or lb_movie.get("lb_title")
+            title_request = lb_movie.get("tmdb_original_title") or lb_movie.get("lb_title")
             lb_year = lb_movie.get("lb_year")
-            ac_id = find_closest_id(lb_title_request, allocine_title_to_id_year, lb_year)
+            ac_id = find_closest_id(title_request, allocine_title_to_id_year, lb_year)
             lb_movie.update({'ac_id': ac_id})
 
 
@@ -320,7 +320,7 @@ for user in users_info:
                     continue
 
                 film_name  = allocine_films[ac_id].get("ac_title") or "Titre inconnu"
-                film_poster = allocine_films[ac_id].get("ac_poster") or "https://via.placeholder.com/120x180?text=No+Poster"
+                film_poster = watchlist_movies[lb_id]["tmdb_poster"] or allocine_films[ac_id].get("ac_poster") or "https://via.placeholder.com/120x180?text=No+Poster"
 
                 # Movie card
                 html += f"""\
