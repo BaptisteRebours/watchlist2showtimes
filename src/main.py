@@ -88,7 +88,8 @@ date_max = (datetime.today() + timedelta(days=30)).strftime('%Y-%m-%d')
 ### --- Scraping watchlist movies showtimes ---
 print("Scraping watchlist movies showtimes...")
 
-ONLY_USER = os.getenv("ONLY_USER")  
+ONLY_USER = os.getenv("ONLY_USER")
+print("Loading watchlist movies cache...")
 watchlist_movies_cache = load_tmdb_cache()
 
 for u, user in enumerate(users_info):
@@ -123,7 +124,7 @@ for u, user in enumerate(users_info):
         ## Watchlist movies
         print("Retrieving watchlist movies...")
         user_watchlist_movies = {}
-        for page_num in range(1, nb_pages+1):
+        for page_num in range(1, 3):
 
             # Avoid blocking
             print(f"Page {page_num}")
@@ -140,7 +141,7 @@ for u, user in enumerate(users_info):
             div_movies = soup_page.find_all("li", class_="griditem")
 
             # Retrieve movie info
-            for m, mov in enumerate(div_movies):
+            for m, mov in enumerate(div_movies[:5]):
 
                 # Avoid blocking
                 print(f"Movie {m+1}")
@@ -151,6 +152,7 @@ for u, user in enumerate(users_info):
 
                 if slug_movie not in watchlist_movies_cache:
                     # Retrieve movie info from LB
+                    print(f"{slug_movie} not in cache")
                     link_movie = f"film/{slug_movie}"
                     url_movie = urllib.parse.urljoin(URL_LETTERBOXD, link_movie)
                     title_year_movie = mov.find("div").get("data-item-name") 
@@ -173,6 +175,7 @@ for u, user in enumerate(users_info):
                     }
                 else:
                     # Retrieve movie info from cache file
+                    print(f"{slug_movie} already in cache")
                     user_watchlist_movies[slug_movie] = watchlist_movies_cache[slug_movie]
 
 
