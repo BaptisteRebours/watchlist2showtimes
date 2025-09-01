@@ -23,6 +23,7 @@ jobs:
       EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
       EMAIL_PWD: ${{ secrets.EMAIL_PWD }}
       USERS_INFO_JSON_B64: ${{ secrets.USERS_INFO_JSON_B64 }}
+      IMDB_TOKEN: ${{ secrets.IMDB_TOKEN }}
 
     steps:
       - name: Checkout

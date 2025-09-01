@@ -141,7 +141,7 @@ for u, user in enumerate(users_info):
             div_movies = soup_page.find_all("li", class_="griditem")
 
             # Retrieve movie info
-            for m, mov in enumerate(div_movies[:5]):
+            for m, mov in enumerate(div_movies[:10]):
 
                 # Avoid blocking
                 print(f"Movie {m+1}")
