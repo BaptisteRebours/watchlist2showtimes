@@ -27,6 +27,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
+      - name: Restore TMDb cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/output
+          key: tmdb-cache-${{ github.ref_name }}
+          restore-keys: |
+            tmdb-cache-
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -46,7 +54,6 @@ jobs:
 
       - name: Create output directories
         run: |
-          mkdir -p data/output/watchlist_films
           mkdir -p data/output/cinema_programme
 
       - name: Run script (main.py)
@@ -55,6 +62,7 @@ jobs:
           EMAIL_PWD: ${{ env.EMAIL_PWD }}
           EMAIL_PORT: ${{ env.EMAIL_PORT }}
           ONLY_USER: ${{ inputs.only_user }}
+          IMDB_TOKEN: ${{ env.IMDB_TOKEN }}
         run: |
           python src/main.py
 
@@ -68,3 +76,10 @@ jobs:
             data/output/*.json
             data/*.json
           if-no-files-found: ignore
+      
+      - name: Save TMDb cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/output
+          key: tmdb-cache-${{ github.run_id }}

@@ -26,13 +26,13 @@ from utils import (
     google_maps_link,
     safe_get,
     tmdb_search_movie,
+    load_tmdb_cache,
+    save_tmdb_cache,
 )
 from utils import (
     ALLOCINE_CITIES_PATH, 
     ALLOCINE_FILMS_PATH, 
     USERS_INFO_PATH,
-    WATCHLIST_PATH,
-    WATCHLIST_FILENAME,
     PROGRAMME_PATH,
     PROGRAMME_FILENAME,
     URL_LETTERBOXD,
@@ -89,6 +89,7 @@ date_max = (datetime.today() + timedelta(days=30)).strftime('%Y-%m-%d')
 print("Scraping watchlist movies showtimes...")
 
 ONLY_USER = os.getenv("ONLY_USER")  
+watchlist_movies_cache = load_tmdb_cache()
 
 for u, user in enumerate(users_info):
 
@@ -121,7 +122,7 @@ for u, user in enumerate(users_info):
 
         ## Watchlist movies
         print("Retrieving watchlist movies...")
-        watchlist_movies = {}
+        user_watchlist_movies = {}
         for page_num in range(1, nb_pages+1):
 
             # Avoid blocking
@@ -145,42 +146,47 @@ for u, user in enumerate(users_info):
                 print(f"Movie {m+1}")
                 time.sleep(random.uniform(1, 5))
 
-                # Retrieve movie info from LB
+                # Retrieve movie info from LB and TMDB if not in cache file
                 slug_movie = mov.find("div").get("data-item-slug")
-                link_movie = f"film/{slug_movie}"
-                url_movie = urllib.parse.urljoin(URL_LETTERBOXD, link_movie)
-                title_year_movie = mov.find("div").get("data-item-name") 
-                re_match = re.match(r"^(.*)\((\d{4})\)\s*$", title_year_movie)
-                title_movie = re_match.group(1).rstrip() if re_match else title_year_movie
-                year_movie = re_match.group(2) if re_match else None
 
-                # Retrieve movie original title from TMDB
-                res_tmdb = tmdb_search_movie(session, IMDB_TOKEN, title_movie, year_movie)
-                tmdb_original_title = res_tmdb['original_title'] if res_tmdb else None
-                tmdb_poster = f"https://image.tmdb.org/t/p/w500{res_tmdb['poster_path']}" if res_tmdb else None
+                if slug_movie not in watchlist_movies_cache:
+                    # Retrieve movie info from LB
+                    link_movie = f"film/{slug_movie}"
+                    url_movie = urllib.parse.urljoin(URL_LETTERBOXD, link_movie)
+                    title_year_movie = mov.find("div").get("data-item-name") 
+                    re_match = re.match(r"^(.*)\((\d{4})\)\s*$", title_year_movie)
+                    title_movie = re_match.group(1).rstrip() if re_match else title_year_movie
+                    year_movie = re_match.group(2) if re_match else None
+
+                    # Retrieve movie original title from TMDB
+                    res_tmdb = tmdb_search_movie(session, IMDB_TOKEN, title_movie, year_movie)
+                    tmdb_original_title = res_tmdb['original_title'] if res_tmdb else None
+                    tmdb_poster = f"https://image.tmdb.org/t/p/w500{res_tmdb['poster_path']}" if res_tmdb else None
                 
-                # Append movie to watchlist dict
-                watchlist_movies[slug_movie] = {
-                    "lb_title": title_movie,
-                    "lb_url": url_movie,
-                    "lb_year": year_movie,
-                    "tmdb_original_title": tmdb_original_title,
-                    "tmdb_poster": tmdb_poster,
-                }
+                    # Append movie to watchlist dict
+                    user_watchlist_movies[slug_movie] = {
+                        "lb_title": title_movie,
+                        "lb_url": url_movie,
+                        "lb_year": year_movie,
+                        "tmdb_original_title": tmdb_original_title,
+                        "tmdb_poster": tmdb_poster,
+                    }
+                else:
+                    # Retrieve movie info from cache file
+                    user_watchlist_movies[slug_movie] = watchlist_movies_cache[slug_movie]
 
 
         # Export watchlist movies
         print("Exporting watchlist movies...")
-        user_watchlist_path = WATCHLIST_PATH + user_name + WATCHLIST_FILENAME
-        with open(user_watchlist_path, "w", encoding="utf-8") as f:
-            json.dump(watchlist_movies, f, ensure_ascii=False, indent=2)
+        new_watchlist_movies_cache = {**watchlist_movies_cache, **user_watchlist_movies}
+        save_tmdb_cache(new_watchlist_movies_cache)
 
 
         ## Allocine movie info
         print("Retrieving Allocine movie info...")
         allocine_title_to_id_year = build_index(allocine_films)
 
-        for lb_id, lb_movie in watchlist_movies.items():
+        for lb_id, lb_movie in user_watchlist_movies.items():
             title_request = lb_movie.get("tmdb_original_title") or lb_movie.get("lb_title")
             lb_year = lb_movie.get("lb_year")
             ac_id = find_closest_id(title_request, allocine_title_to_id_year, lb_year)
@@ -191,7 +197,7 @@ for u, user in enumerate(users_info):
         print("Looking for movies showtimes...")
         all_films_showtimes = {}
 
-        for lb_id, lb_movie in watchlist_movies.items():
+        for lb_id, lb_movie in user_watchlist_movies.items():
             film_id = lb_movie["ac_id"]
             if film_id:
                 link_movie_near = f"movie-{film_id}/near-{user_city_id}/d-"
@@ -305,8 +311,8 @@ for u, user in enumerate(users_info):
                     # no showtime, checking if ac_id problem
                     if not (all_films_showtimes.get(lb_id, {}).get("ac_id")):
                         missing_allocine.append({
-                            "lb_title": watchlist_movies[lb_id]["lb_title"],
-                            "lb_url": watchlist_movies[lb_id]["lb_url"],
+                            "lb_title": user_watchlist_movies[lb_id]["lb_title"],
+                            "lb_url": user_watchlist_movies[lb_id]["lb_url"],
                         })
                     continue
 
@@ -314,13 +320,13 @@ for u, user in enumerate(users_info):
                 if not ac_id or ac_id not in allocine_films:
                     # no ac_id: add to missing_allocine to alert user
                     missing_allocine.append({
-                        "lb_title": watchlist_movies[lb_id]["lb_title"],
-                        "lb_url": watchlist_movies[lb_id]["lb_url"],
+                        "lb_title": user_watchlist_movies[lb_id]["lb_title"],
+                        "lb_url": user_watchlist_movies[lb_id]["lb_url"],
                     })
                     continue
 
                 film_name  = allocine_films[ac_id].get("ac_title") or "Titre inconnu"
-                film_poster = watchlist_movies[lb_id]["tmdb_poster"] or allocine_films[ac_id].get("ac_poster") or "https://via.placeholder.com/120x180?text=No+Poster"
+                film_poster = user_watchlist_movies[lb_id]["tmdb_poster"] or allocine_films[ac_id].get("ac_poster") or "https://via.placeholder.com/120x180?text=No+Poster"
 
                 # Movie card
                 html += f"""\

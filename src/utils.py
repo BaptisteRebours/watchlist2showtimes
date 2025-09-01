@@ -3,6 +3,8 @@ import urllib
 import difflib
 from collections import defaultdict
 import requests
+import os
+import json
 
 
 ### --- Parameters ---
@@ -17,8 +19,7 @@ TMDB_BASE = "https://api.themoviedb.org/3"
 ALLOCINE_CITIES_PATH = "./data/input/allocine_cities_id.json"
 ALLOCINE_FILMS_PATH = "./data/input/allocine_films.json"
 USERS_INFO_PATH = "./data/input/users_info.json"
-WATCHLIST_PATH = "./data/output/watchlist_films/"
-WATCHLIST_FILENAME = "_watchlist_films.json"
+WATCHLIST_PATH = "./data/output/watchlist_films.json"
 PROGRAMME_PATH = "./data/output/cinema_programme/"
 PROGRAMME_FILENAME = "_programme.json"
 
@@ -95,3 +96,16 @@ def tmdb_search_movie(session: requests.Session, tmdb_token: str, title: str, ye
         return None
     results = (r.json() or {}).get("results") or []
     return results[0] if results else None
+
+def load_tmdb_cache():
+    if os.path.exists(WATCHLIST_PATH):
+        with open(WATCHLIST_PATH, "r", encoding="utf-8") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {}
+    return {}
+
+def save_tmdb_cache(cache: dict):
+    with open(WATCHLIST_PATH, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2)
