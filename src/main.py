@@ -124,7 +124,7 @@ for u, user in enumerate(users_info):
         ## Watchlist movies
         print("Retrieving watchlist movies...")
         user_watchlist_movies = {}
-        for page_num in range(1, 3):
+        for page_num in range(1, nb_pages+1):
 
             # Avoid blocking
             print(f"Page {page_num}")
@@ -141,7 +141,7 @@ for u, user in enumerate(users_info):
             div_movies = soup_page.find_all("li", class_="griditem")
 
             # Retrieve movie info
-            for m, mov in enumerate(div_movies[:10]):
+            for m, mov in enumerate(div_movies):
 
                 # Avoid blocking
                 print(f"Movie {m+1}")
