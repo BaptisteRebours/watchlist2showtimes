@@ -2,7 +2,7 @@ name: Weekly cinema email
 
 on:
   schedule:
-    - cron: "30 6 * * 3,5"
+    - cron: "30 6 * * 3"
   workflow_dispatch:
     inputs:
       only_user:
