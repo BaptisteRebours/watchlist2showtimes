@@ -92,7 +92,7 @@ ONLY_USER = os.getenv("ONLY_USER")
 print("Loading watchlist movies cache...")
 watchlist_movies_cache = load_tmdb_cache()
 
-for u, user in enumerate(users_info):
+for u, user in enumerate(users_info[:1]):
 
     try:
         if ONLY_USER and (user.get("lb_profile_id") != ONLY_USER and user.get("email_address") != ONLY_USER):
@@ -108,82 +108,83 @@ for u, user in enumerate(users_info):
         user_city_id = allocine_cities_id[user['city']]
         user_departments_subset = user['departments_subset']
 
-        ## Watchlist's number of pages
-        print("Finding watchlist's number of pages...")
-        link_user_watchlist = f"{user_name}/watchlist/"
-        url_watchlist = urllib.parse.urljoin(URL_LETTERBOXD, link_user_watchlist)
-        r = session.get(url_watchlist)
-        soup = BeautifulSoup(r.content, 'html.parser')
-        div_pages = soup.find("div", class_="paginate-pages")
-        if div_pages:
-            nb_pages = int(div_pages.find_all("a")[-1].get_text())
-        else:
-            nb_pages = 1
-        print(f"Pages total: {nb_pages}")
+        # ## Watchlist's number of pages
+        # print("Finding watchlist's number of pages...")
+        # link_user_watchlist = f"{user_name}/watchlist/"
+        # url_watchlist = urllib.parse.urljoin(URL_LETTERBOXD, link_user_watchlist)
+        # r = session.get(url_watchlist)
+        # soup = BeautifulSoup(r.content, 'html.parser')
+        # div_pages = soup.find("div", class_="paginate-pages")
+        # if div_pages:
+        #     nb_pages = int(div_pages.find_all("a")[-1].get_text())
+        # else:
+        #     nb_pages = 1
+        # print(f"Pages total: {nb_pages}")
 
-        ## Watchlist movies
-        print("Retrieving watchlist movies...")
-        user_watchlist_movies = {}
-        for page_num in range(1, nb_pages+1):
+    #     ## Watchlist movies
+    #     print("Retrieving watchlist movies...")
+    #     user_watchlist_movies = {}
+    #     for page_num in range(1, nb_pages+1):
 
-            # Avoid blocking
-            print(f"Page {page_num}")
-            time.sleep(random.uniform(10, 30))
+    #         # Avoid blocking
+    #         print(f"Page {page_num}")
+    #         time.sleep(random.uniform(10, 30))
 
-            # Retrieve watchlist page x movies
-            link_page = f"page/{page_num}"
-            url_watchlist_page = urllib.parse.urljoin(url_watchlist, link_page)
-            r_page = safe_get(url_watchlist_page, session)
-            if not r_page:
-                print(f"[SKIP] Impossible to retrieve {url_watchlist_page}")
-                continue
-            soup_page = BeautifulSoup(r_page.content, 'html.parser')
-            div_movies = soup_page.find_all("li", class_="griditem")
+    #         # Retrieve watchlist page x movies
+    #         link_page = f"page/{page_num}"
+    #         url_watchlist_page = urllib.parse.urljoin(url_watchlist, link_page)
+    #         r_page = safe_get(url_watchlist_page, session)
+    #         if not r_page:
+    #             print(f"[SKIP] Impossible to retrieve {url_watchlist_page}")
+    #             continue
+    #         soup_page = BeautifulSoup(r_page.content, 'html.parser')
+    #         div_movies = soup_page.find_all("li", class_="griditem")
 
-            # Retrieve movie info
-            for m, mov in enumerate(div_movies):
+    #         # Retrieve movie info
+    #         for m, mov in enumerate(div_movies):
 
-                # Avoid blocking
-                print(f"Movie {m+1}")
-                time.sleep(random.uniform(1, 5))
+    #             # Avoid blocking
+    #             print(f"Movie {m+1}")
+    #             time.sleep(random.uniform(1, 5))
 
-                # Retrieve movie info from LB and TMDB if not in cache file
-                slug_movie = mov.find("div").get("data-item-slug")
+    #             # Retrieve movie info from LB and TMDB if not in cache file
+    #             slug_movie = mov.find("div").get("data-item-slug")
 
-                if slug_movie not in watchlist_movies_cache:
-                    # Retrieve movie info from LB
-                    print(f"{slug_movie} not in cache")
-                    link_movie = f"film/{slug_movie}"
-                    url_movie = urllib.parse.urljoin(URL_LETTERBOXD, link_movie)
-                    title_year_movie = mov.find("div").get("data-item-name") 
-                    re_match = re.match(r"^(.*)\((\d{4})\)\s*$", title_year_movie)
-                    title_movie = re_match.group(1).rstrip() if re_match else title_year_movie
-                    year_movie = re_match.group(2) if re_match else None
+    #             if slug_movie not in watchlist_movies_cache:
+    #                 # Retrieve movie info from LB
+    #                 print(f"{slug_movie} not in cache")
+    #                 link_movie = f"film/{slug_movie}"
+    #                 url_movie = urllib.parse.urljoin(URL_LETTERBOXD, link_movie)
+    #                 title_year_movie = mov.find("div").get("data-item-name") 
+    #                 re_match = re.match(r"^(.*)\((\d{4})\)\s*$", title_year_movie)
+    #                 title_movie = re_match.group(1).rstrip() if re_match else title_year_movie
+    #                 year_movie = re_match.group(2) if re_match else None
 
-                    # Retrieve movie original title from TMDB
-                    res_tmdb = tmdb_search_movie(session, IMDB_TOKEN, title_movie, year_movie)
-                    tmdb_original_title = res_tmdb['original_title'] if res_tmdb else None
-                    tmdb_poster = f"https://image.tmdb.org/t/p/w500{res_tmdb['poster_path']}" if res_tmdb else None
+    #                 # Retrieve movie original title from TMDB
+    #                 res_tmdb = tmdb_search_movie(session, IMDB_TOKEN, title_movie, year_movie)
+    #                 tmdb_original_title = res_tmdb['original_title'] if res_tmdb else None
+    #                 tmdb_poster = f"https://image.tmdb.org/t/p/w500{res_tmdb['poster_path']}" if res_tmdb else None
                 
-                    # Append movie to watchlist dict
-                    user_watchlist_movies[slug_movie] = {
-                        "lb_title": title_movie,
-                        "lb_url": url_movie,
-                        "lb_year": year_movie,
-                        "tmdb_original_title": tmdb_original_title,
-                        "tmdb_poster": tmdb_poster,
-                    }
-                else:
-                    # Retrieve movie info from cache file
-                    print(f"{slug_movie} already in cache")
-                    user_watchlist_movies[slug_movie] = watchlist_movies_cache[slug_movie]
+    #                 # Append movie to watchlist dict
+    #                 user_watchlist_movies[slug_movie] = {
+    #                     "lb_title": title_movie,
+    #                     "lb_url": url_movie,
+    #                     "lb_year": year_movie,
+    #                     "tmdb_original_title": tmdb_original_title,
+    #                     "tmdb_poster": tmdb_poster,
+    #                 }
+    #             else:
+    #                 # Retrieve movie info from cache file
+    #                 print(f"{slug_movie} already in cache")
+    #                 user_watchlist_movies[slug_movie] = watchlist_movies_cache[slug_movie]
 
 
-        # Export watchlist movies
-        print("Exporting watchlist movies...")
-        new_watchlist_movies_cache = {**watchlist_movies_cache, **user_watchlist_movies}
-        save_tmdb_cache(new_watchlist_movies_cache)
+    #     # Export watchlist movies
+    #     print("Exporting watchlist movies...")
+    #     new_watchlist_movies_cache = {**watchlist_movies_cache, **user_watchlist_movies}
+    #     save_tmdb_cache(new_watchlist_movies_cache)
 
+        user_watchlist_movies = watchlist_movies_cache
 
         ## Allocine movie info
         print("Retrieving Allocine movie info...")
